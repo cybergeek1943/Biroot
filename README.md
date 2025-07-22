@@ -27,11 +27,10 @@ result = b(9)  # will be approximately 3
 # Cube root approximation, Gaussian function with m=8, parameterize c
 b = Biroot(m=8, n=3, c=Symbol('c'), continuous=True)
 b.print('latex')
-denom_coeffs = b.denominator_coeffs
 
 result = b(8, 2)  # cube root of 8, centered at 2^3
 
-# Becuase there is full MathFlow support, we get more analysis tools
+# Because there is full MathFlow support, we get more analysis tools
 roots = b.all_roots()
 b_prime = b.diff()  # find the derivative of b
 ```

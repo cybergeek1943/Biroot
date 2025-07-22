@@ -1,10 +1,9 @@
-from mathflow import Rational, Expression
-from mathflow.core import SympyExpr
+from mathflow import Rational
 from sympy import Symbol, Expr, Add
 from sympy.core.numbers import E
 from sympy import UnevaluatedExpr as uExpr
 from sympy.abc import x
-from typing import Callable, Self, Any, Literal
+from typing import Callable, Self, Any
 from math import ceil, exp
 from dag import DAG, Level
 
@@ -136,10 +135,6 @@ if __name__ == "__main__":
     from sympy.abc import c
     b = Biroot(15, 3, 1, continuous=True)
     b.print('latex')
-
-    # TODO, have a param to control just created coeffs and not the rational expr.
-    # TODO, process the coeffs
-    # TODO, continuous param in DAG()
 
     # --------------------------- Example ---------------------------
     # # ================ Example Biroot ================

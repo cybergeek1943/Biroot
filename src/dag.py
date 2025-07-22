@@ -175,5 +175,7 @@ if __name__ == '__main__':
     #          func=Funcs.sum,  # to be used in the operator to create the next level of nodes based.
     #          step_caller=print_coefficients)
     # print_func(ll.getLevel(5), k=2)
-    g = DAG()
-    print(g[5][3])
+    # g = DAG()
+    # print(g[5][3])
+    dag = DAG(basin=[3, 6, 2, 8], depth=30, node_arity=3)
+    print(dag[3])

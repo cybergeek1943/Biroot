@@ -1,7 +1,7 @@
-from code import dag as t
+from src import dag as t
 import matplotlib.pyplot as plt
 import numpy as np
-type num = t.num
+type num = int | float
 
 
 def generate_pascals_triangle(n: int) -> list[int]:
@@ -68,12 +68,11 @@ if __name__ == '__main__':
     dag = t.DAG(basin=t.Level(basin),
                 depth=100,  # depth of recursion
                 node_arity=2,  # max number of nodes to be used as arguments for the operator (n-ary graph as a result)
-                func=t.Funcs.sum,  # to be used in the operator to create the next level of nodes based.
-                step_caller=t.print_coefficients,
+                func=t.Funcs.sum,  # to be used in the operator to create the next level of nodes based.,
                 save_levels=True)
 
     # Plot
-    plot_comparison(dag.getLevel(5))
+    plot_comparison(dag.get_level(0))
     print(basin)
 
     # plot_comparison(generate_pascals_triangle(10))

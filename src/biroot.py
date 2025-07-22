@@ -1,292 +1,127 @@
-from typing import Callable
-from math import comb, ceil
-from abc import ABC, abstractmethod
+from mathflow import Rational, Expression
+from mathflow.core import SympyExpr
+from sympy import Symbol, Expr, Add
+from sympy.core.numbers import E
+from sympy import UnevaluatedExpr as uExpr
+from sympy.abc import x
+from typing import Callable, Self, Any, Literal
+from math import ceil, exp
+from dag import DAG, Level
 
 
-def nCk(n: int, k: int) -> int:
-    if k < 0:
-        return 0
-    return comb(n, k)
+class GaussianFunctions:
+    class MachinePrec:
+        f1: Callable[[int, float], float] = lambda m, x: exp(-2 * (x - m/2) ** 2 / m)  # mu = m/2
+        f2: Callable[[int, float], float] = lambda m, x: exp(-2 * (x - m) ** 2 / m)  # mu = m
+    f1: Callable[[int, float], Expr] = lambda m, x: uExpr(E) ** (-2 * (x - m/2) ** 2 / uExpr(m))  # mu = m/2
+    f2: Callable[[int, float], Expr] = lambda m, x: uExpr(E) ** (-2 * (x - m) ** 2 / uExpr(m))  # mu = m
+    f3: Callable[[int, float], Expr] = lambda m, x: uExpr(E) ** (-2 * (x - m/2) ** 2 / m)  # mu = m/2, evaluated index
+    f4: Callable[[int, float], Expr] = lambda m, x: uExpr(E) ** (-2 * (x - m) ** 2 / m)  # mu = m, evaluated index
 
 
-class DynamicFunction(ABC):
-    """An ABC class that defines a Dynamic Function."""
-    @abstractmethod
-    def __call__(self, *args, **kwargs):
-        pass
-
-
-class Function(DynamicFunction):  # Has 1 def
-    def __call__(self, *args, **kwargs):
-        pass
-
-
-class RationalFunction(DynamicFunction):  # Has 2 defs for numerator and denominator
-    def __call__(self, *args, **kwargs):
-        pass
-
-
-class Biroot(RationalFunction):
+class Biroot(Rational):
     """
     Implements the iterative approximation for ith roots. It uses the nth row version of the formula rather than the initial (n*i)th row formula.
     It allows use to set a default c centering or, alternatively, use a parameterized c centering.
 
     PROMISING RESULT: if i=4 and denominator_offset=1, seems to be a better function to approximate the next c.
     """
-
-    def __init_callable(self) -> None:
-        self.f_def = self.create_ith_root_def()
-        self.callable = eval(f"lambda x{', c' if self.parameterize_c else ''}: {self.f_def}")
-
-    def __setattr__(self, key, value):
-        if key in self.__dict__ and key in ('n', 'c', 'i', 'parameterize_c', 'inverse', 'numerator_offset', 'denominator_offset'):
-            super().__setattr__(key, value)
-            self.__init_callable()
-        else:
-            super().__setattr__(key, value)
-
     def __init__(self,
-                 n: int = 8,
-                 c: float = 1,
-                 i: int = 2,
-                 parameterize_c: bool = False,
-                 inverse: bool = False,
-                 ) -> None:
-        """
-        :param n: Thought of as the row
-        :param c: Centered around c^i
-        :param i: The index of the root
-        :param parameterize_c: Whether to make c a bound variable parameter
-        :param inverse: Whether to make the biroot an inverse root (useful for RecursiveBiroot)
-        """
-        # Parameters
-        self.n: int = n
-        self.c: float = c
-        self.i: int = i
-        self.parameterize_c: bool = parameterize_c
-        self.inverse: bool = inverse
-        # offset can be used, for example, to choose every other element in a row while skipping elements in between a choice. Example, i=4 and offset=1 (1+1=2 so offset is actually two in the denominator)
-        self.numerator_offset: int = 0
-        self.denominator_offset: int = 0
+                 m: int,
+                 n: int = 2,
+                 c: float | Symbol = 1,
+                 dag: DAG | Level | tuple[list[float], list[float]] = DAG(),
+                 apply_upper_sum_bound_limit: bool = True,
+                 continuous: bool | Callable[[int, float], Expr | float] = False,
+                 **kwargs) -> None:
+        super().__init__()
+        # IMPORTANT NOTE: Make sure that these attributes don't conflict with parent attributes
+        self._m: int = m
+        self._n: int = n
+        self._c: float = c
+        self._dag: DAG | Level | tuple[list[float], list[float]] = dag
+        self._apply_upper_sum_bound_limit: bool = apply_upper_sum_bound_limit
 
-        # Internals
-        self.f_def: str = ''
-        self.callable: Callable = lambda: None
-        self.__init_callable()
+        if continuous:
+            self.set_continuous(continuous)
+        # Create Function
+        self._coeffs: tuple[list[float | Expr], list[float | Expr]] = ([], [])
+        self.init_biroot_rational(**kwargs)
 
-    def __call__(self, x: float, c: float = 1) -> float:
-        if not self.callable:
-            raise ReferenceError('Function has not been created yet.')
-        if self.parameterize_c:
-            return self.callable(x, c)
-        return self.callable(x)
+    def init_biroot_rational(self, **kwargs) -> Self:
+        m, n, c = self._m, self._n, self._c
+        numerator_coeffs: list[int | float] = []
+        denominator_coeffs: list[int | float] = []
+        if isinstance(self._dag, tuple):
+            numerator_coeffs, denominator_coeffs = self._dag
+        else:
+            level: Level = self._dag.get_level(m) if isinstance(self._dag, DAG) else self._dag
+            upper_bound: int = ceil(m / n) + (1 if m % n == 0 else 0) if self._apply_upper_sum_bound_limit else m  # 👉👉👉 TODO thoroughly document this math
+            __mhl_kwargs: dict = {
+                'heads': (0, 1),  # number and position of pointers
+                'step': (n, n),  # the step for each pointer
+                'end_pos': upper_bound  # how far the pointers should traverse
+            }
+            if kwargs: __mhl_kwargs.update(kwargs)
+            for nc, dc in level.multihead_loop(**__mhl_kwargs):
+                numerator_coeffs.append(nc)
+                denominator_coeffs.append(dc)
 
-    def __str__(self):
-        return self.export_formated_str()
+        if c == 1:
+            numerator: Expr = Add(*[coeff * x**k for k, coeff in enumerate(numerator_coeffs)])
+            denominator: Expr = Add(*[coeff * x**k for k, coeff in enumerate(denominator_coeffs)])
+        else:
+            numerator: Expr = Add(*[coeff * c**(m - n*k) * x**k for k, coeff in enumerate(numerator_coeffs)])
+            denominator: Expr = Add(*[coeff * c**(m - n*k - 1) * x**k for k, coeff in enumerate(denominator_coeffs)])
 
-    def pprint(self) -> None:
-        print(self.export_formated_str(True))
+        self._coeffs = numerator_coeffs, denominator_coeffs
+        self.set_expr(numerator / denominator)  # set the rationals internal expr
+        return self
+
+    def change_params(self, **kwargs) -> Self:
+        for k, v in kwargs.items():  # update the biroot class attributes
+            if hasattr(self, f'_{k}'):
+                setattr(self, f'_{k}', kwargs.pop(k))
+        return self.init_biroot_rational(**kwargs)
+
+    def set_continuous(self, f: bool | Callable[[int, float], Expr | float], **kwargs) -> Self:
+        if isinstance(f, bool) and f:
+            f = GaussianFunctions.f1
+        self._dag.as_continuous(f)
+        return self.change_params(**kwargs)
 
     @property
-    def total_operations_count(self) -> int:
-        s: str = self.f_def
-        s = s.replace('**', '*')
-        s = s.replace('+', '*')
-        s = s.replace('/', '*')
-        return s.count('*')
+    def numerator_coeffs(self) -> list[float | Expr]:
+        return self._coeffs[0]
 
-    def export_formated_str(self, pretty: bool = None) -> str:
-        s: str = self.f_def
-        s = s.replace('+', ' + ')
-        s = s.replace('**', '^')
-        s = s.replace('*', ' ')
-        if pretty:
-            n, d = s[1:-1].split(')/(')
-            max_len: int = max(len(n), len(d))
-            s = f'{n:^{max_len}}\n{'-' * max_len}\n{d:^{max_len}}'
-        return s
+    @property
+    def denominator_coeffs(self) -> list[float | Expr]:
+        return self._coeffs[1]
 
-    def export_expression_str(self) -> str:
-        return self.f_def
+    @property
+    def biroot_params(self) -> dict[str, Any]:
+        return {'m': self._m, 'n': self._n, 'c': self._c, 'dag': self._dag}
 
-    @staticmethod
-    def str_from_numerator_denominator(numerator: list[str], denominator: list[str]) -> str:
-        # if numerator[-1][0] == '0':
-        #     numerator.pop(-1)  # because of the extra 0 term that sometimes occurs.
-        s: str = f"({'+'.join(numerator)})/({'+'.join(denominator)})"
-        s = s.replace('*c**0', '')
-        s = s.replace('c**1*', 'c*')
-        s = s.replace('*x**0', '')
-        s = s.replace('x**1+', 'x+')
-        return s
-
-    def create_ith_root_def(self) -> str:
-        n, c, i, parameterize_c, no, do = self.n, self.c, self.i, self.parameterize_c, self.numerator_offset, self.denominator_offset
-        # NOTE: no and do (offset for numerator and denominator) is just for doing specific tests and is not part of the actual formula.
-        nr: range = range(0, ceil(n / i) + (1 if n % i == 0 else 0) - no)
-        dr: range = range(0, ceil(n / i) - do)
-        if parameterize_c:
-            numerator: list[str] = [f'{nCk(n, i*k+no)}*c**{n-i*k-no}*x**{k}' for k in nr]
-            denominator: list[str] = [f'{nCk(n, i*k+1+do)}*c**{n-i*k-1-do}*x**{k}' for k in dr]
-        elif c != 1:
-            numerator: list[str] = [f'{nCk(n, i*k+no) *c**(n-i*k-no)}*x**{k}' for k in nr]
-            denominator: list[str] = [f'{nCk(n, i*k+1+do) *c**(n-i*k-1-do)}*x**{k}' for k in dr]
-        else:
-            numerator: list[str] = [f'{nCk(n, i*k+no)}*x**{k}' for k in nr]
-            denominator: list[str] = [f'{nCk(n, i*k+1+do)}*x**{k}' for k in dr]
-        return self.str_from_numerator_denominator(
-            numerator=denominator,
-            denominator=numerator
-        ) if self.inverse else self.str_from_numerator_denominator(
-            numerator=numerator,
-            denominator=denominator)
-
-    # def __create_ith_root_def(self) -> str:  # FOR EXPERIMENTAL TESTS
-    #     n = self.n
-    #     r1: range = range(0, ceil(n / 2)+1)
-    #     r2: range = range(0, ceil(n / 2))
-    #     numerator: list[str] = [f'{nCk(n, 2 * k)}*x**{k}' for k in r1]
-    #     denominator: list[str] = [f'{nCk(n, 2 * k + 1)}*x**{k}' for k in r2]
-    #     return self.str_from_numerator_denominator(numerator, denominator)
-
-    @staticmethod  # TODO make a dedicated class for constructing rational functions from coefficients
-    def __creat_rational_def__(coefficients: list[int], inverse: bool = False, k: int = 2) -> str:
-        """Just for creating other rational functions"""
-        numerator_coefficients = coefficients[::k]
-        denominator_coefficients = coefficients[1::k]
-        c_indices = [i for i in range(len(coefficients))]
-        c_indices.reverse()
-        numerator: list[str] = [f'{coefficient}*x**{i}'
-                                for coefficient, i in zip(numerator_coefficients,
-                                                          range(len(numerator_coefficients)))]
-        denominator: list[str] = [f'{coefficient}*x**{i}'
-                                  for coefficient, i in zip(denominator_coefficients,
-                                                            range(len(denominator_coefficients)))]
-        return Biroot.str_from_numerator_denominator(
-            numerator=denominator,
-            denominator=numerator
-        ) if inverse else Biroot.str_from_numerator_denominator(
-            numerator=numerator,
-            denominator=denominator)
+    def convert_sci_notation_in_str(self) -> str:
+        return super().__str__().replace('e-', '*10**-')
 
 
-# TODO look into using inverse square root to avoid overflow errors.
-class RecursiveBiroot(Biroot):
-    def __init__(self,
-                 steps: float | int,
-                 n: int = 8,
-                 c: float = 1,
-                 i: int = 2,
-                 ) -> None:
-        """
-        - NOTE: currently the dynamic recursion is unreliable because the way the accuracy threshold is detected. For this reason, is better to specify the exact number of steps. If a float for steps is used, you may get an infinite loop because the accuracy threshold is too extreme.
-        - NOTE for `i==2`: `i` needs to be odd so that it levels out. If you don't do this, you can get an Overload error.
-        - NOTE for `i > 2`: to get accurate results, `n-1` must be evenly divisible by `i`.
-
-        :param n: If a float is passed it will be used to reach that level of accuracy. If it's an integer it will do n many recursive steps.
-        :param c: The initial guess (centered around c^i).
-        :param i: The index of the root.
-        """
-        super().__init__(
-            n=n,
-            c=c,
-            i=i,
-            parameterize_c=True,
-            inverse=True
-        )
-        self.steps: float | int = steps
-
-        # Runtime info
-        self.recursive_steps_count: int = 0  # number of recursive steps in last call.
-
-    def __call__(self, x: float, c: float | None = None):
-        """Performs a recursive Biroot calculation on c... basically in the form B(x, B(x, B(x, c)))."""
-        if not c: c = self.c
-        self.recursive_steps_count = 0
-        B: Callable = super().__call__
-        if isinstance(self.steps, float):
-            accuracy: float = self.steps
-            t: float = 0
-            while abs(t - c) > accuracy:
-                t = c
-                c = 1 / B(x, c)
-                self.recursive_steps_count += 1
-            return c
-        for _ in range(self.steps):
-            c = 1 / B(x, c)
-            self.recursive_steps_count += 1
+def RecursiveBiroot(b: Biroot, x, c, steps: int | float = 0.001):
+    """
+    - NOTE: currently the dynamic recursion is unreliable because the way the accuracy threshold is detected. For this reason, is better to specify the exact number of steps. If a float for steps is used, you may get an infinite loop because the accuracy threshold is too extreme.
+    - NOTE for `i==2`: `i` needs to be odd so that it levels out. If you don't do this, you can get an Overload error.
+    - NOTE for `i > 2`: to get accurate results, `n-1` must be evenly divisible by `i`.
+    """
+    if isinstance(steps, float):
+        accuracy: float = steps
+        t: float = 0
+        while abs(t - c) > accuracy:
+            t = c
+            c = b(x, c)
         return c
-
-    @property
-    def total_operations_count(self):
-        return self.recursive_steps_count * super().total_operations_count
-
-
-class NewtonRaphsonRoot(DynamicFunction):
-    def __init__(self,
-                 steps: float | int = 0.000001,
-                 c: float = 1,
-                 i: int = 2,
-                 ) -> None:
-        """
-        :param steps: If a float is passed it will be used to reach that level of accuracy. If it's an integer it will do n many recursive steps.
-        :param c: The initial guess (centered around c^i)
-        :param i: The index of the root
-        """
-        # Parameters
-        self.steps: float | int = steps
-        self.c: float = c
-        self.i: int = i
-
-        # Runtime info
-        self.recursive_steps_count: int = 0  # number of recursive steps in last call.
-
-    def __call__(self, x: float, c: float | None = None) -> float:
-        if not c: c = self.c
-        return self._nr_method(lambda p: p**self.i-x, lambda p: self.i*p**(self.i-1), c)
-
-    @property
-    def total_operations_count(self):
-        return self.recursive_steps_count * 7  # a total of 7 operation per recursive step
-
-    def _nr_method(self, f: callable, fd: callable, c: float) -> float:
-        """Generic implementation of the newtons-raphson method.
-        f is the function and fd is the functions derivative. c is the initial guess."""
-        self.recursive_steps_count = 1  # 1 to count the first assignment at x2
-        x1: float = c
-        x2: float = x1 - (f(x1) / fd(x1))
-        if isinstance(self.steps, float):
-            accuracy: float = self.steps
-            while abs(x2 - x1) > accuracy:
-                x1 = x2
-                x2 = x2 - (f(x2) / fd(x2))
-                self.recursive_steps_count += 1
-            return x2
-        for _ in range(self.steps):
-            x2 = x2 - (f(x2) / fd(x2))
-            self.recursive_steps_count += 1
-        return x2
-
-
-def find_error_boundaries(biroot_: Biroot, error_threshold: float, initial_guesses: tuple | list) -> list:
-    """Find the exact boundaries where error equals the threshold."""
-    error_func = lambda x: abs(biroot_(x) - x ** (1 / biroot_.i)) - error_threshold
-    def derivative(x, h=0.00001):  # Derivative approximation
-        return (error_func(x + h) - error_func(x)) / h
-    boundaries: list[float] = []
-    for guess in initial_guesses:
-        x: float = guess
-        for _ in range(100):  # Max iterations
-            fx = error_func(x)
-            if abs(fx) < 0.00001:  # Convergence threshold
-                boundaries.append(x)
-                break
-            dfx = derivative(x)
-            x = x - fx / dfx
-    return sorted(boundaries)
-
-
-# TODO 👉👉👉 Show that B(c, c^2) hold for all fixed points less than c... this is to show that sequences of rational functions maintain all previous interpolation points.
+    for _ in range(steps):
+        c = b(x, c)
+    return c
 
 
 if __name__ == "__main__":
@@ -298,12 +133,13 @@ if __name__ == "__main__":
     # print('biroot:', b(v))  # biroot
     # print('actual:', v**(1/2))  # actual
 
-    b = Biroot(n=12, i=2, parameterize_c=True)
-    print(b)
-    print(b(57))
-    print(57**(1/2))
-    print(find_error_boundaries(b, 0.00001, [0.1, 20]))
-    print('\n\n')  # add some space
+    from sympy.abc import c
+    b = Biroot(15, 3, 1, continuous=True)
+    b.print('latex')
+
+    # TODO, have a param to control just created coeffs and not the rational expr.
+    # TODO, process the coeffs
+    # TODO, continuous param in DAG()
 
     # --------------------------- Example ---------------------------
     # # ================ Example Biroot ================
@@ -333,8 +169,8 @@ if __name__ == "__main__":
     #
     # 21471560.725383375
     # 7
-    i=6
-    f = Biroot(n=1, i=i, parameterize_c=True)
-    for n in range(50):
-        print(f.n, f(2**i, 2))
-        f.n += 1
+    # i=6
+    # f = Biroot(m=1, n=i, parameterize_c=True)
+    # for n in range(50):
+    #     print(f.m, f(2 ** i, 2))
+    #     f.m += 1

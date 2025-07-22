@@ -1,10 +1,9 @@
-from mathflow import Rational, Expression
-from mathflow.core import SympyExpr
+from mathflow import Rational
 from sympy import Symbol, Expr, Add
 from sympy.core.numbers import E
 from sympy import UnevaluatedExpr as uExpr
 from sympy.abc import x
-from typing import Callable, Self, Any, Literal
+from typing import Callable, Self, Any
 from math import ceil, exp
 from dag import DAG, Level
 
@@ -21,7 +20,7 @@ class GaussianFunctions:
 
 class Biroot(Rational):
     """
-    Implements the iterative approximation for ith roots. It uses the nth row version of the formula rather than the initial (n*i)th row formula.
+    Implements the biroot approximation for ith roots. It uses the nth row version of the formula rather than the initial (n*i)th row formula.
     It allows use to set a default c centering or, alternatively, use a parameterized c centering.
 
     PROMISING RESULT: if i=4 and denominator_offset=1, seems to be a better function to approximate the next c.
@@ -125,52 +124,6 @@ def RecursiveBiroot(b: Biroot, x, c, steps: int | float = 0.001):
 
 
 if __name__ == "__main__":
-    # Error Bounds
-    # b = Biroot(n=16, i=2, c=4)
-    # err = find_error_boundaries(b, error_threshold=0.00001, initial_guesses=[0.1, 40])
-    # print('err bounds:', err)
-    # v = 20  # value
-    # print('biroot:', b(v))  # biroot
-    # print('actual:', v**(1/2))  # actual
-
     from sympy.abc import c
-    b = Biroot(15, 3, 1, continuous=True)
+    b = Biroot(15, 3, c, continuous=True)
     b.print('latex')
-
-    # TODO, have a param to control just created coeffs and not the rational expr.
-    # TODO, process the coeffs
-    # TODO, continuous param in DAG()
-
-    # --------------------------- Example ---------------------------
-    # # ================ Example Biroot ================
-    # biroot = Biroot(n=8, i=2, parameterize_c=True)
-    # print(biroot)
-    # print(biroot(4))
-    # print('\n\n')  # add some space
-    #
-    #
-    # # ================ Example Recursive Algorithms (cube root) ================
-    # num = 9898988980029898989898  # input number
-    # n_r = NewtonRaphsonRoot(i=3)
-    # print(n_r(num))
-    # print(n_r.recursive_steps_count)
-    # print('\n\n')  # add some space
-    # r_br = RecursiveBiroot(steps=20, n=8, i=3)  # 37th row of pascal's triangle. 7 recursive steps.
-    # print(r_br(num))
-    # print(r_br.recursive_steps_count)
-
-
-    # ================ Output ================
-    # (1*c**8+28*c**6*x+70*c**4*x**2+28*c**2*x**3+1*x**4)/(8*c**7+56*c**5*x+56*c**3*x**2+8*c*x**3)
-    # 2.000609756097561
-    #
-    # 21471560.72538337
-    # 87
-    #
-    # 21471560.725383375
-    # 7
-    # i=6
-    # f = Biroot(m=1, n=i, parameterize_c=True)
-    # for n in range(50):
-    #     print(f.m, f(2 ** i, 2))
-    #     f.m += 1

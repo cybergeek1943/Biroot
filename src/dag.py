@@ -68,7 +68,7 @@ class DAG:
     def __init__(self, as_continuous: Callable[[int, float], Any] | bool = None,
                  **kwargs) -> None:
         self.levels: dict[int, Level] = {}
-        if kwargs.get('basin', None) and kwargs.get('depth', None):
+        if 'basin' in kwargs and 'depth' in kwargs:
             self.as_graph(**kwargs)
 
         # Continuous Function Attributes
@@ -108,7 +108,7 @@ class DAG:
         if start_pos is None:
             start_pos = 0
         if isinstance(node_arity, int):
-            node_arity = [p for p in range(-node_arity, 1)]
+            node_arity = [p for p in range(-node_arity + 1, 1)]
         if isinstance(step, int):
             step = [step for _ in range(len(node_arity))]
         print(node_arity, step)
@@ -219,5 +219,5 @@ if __name__ == '__main__':
     # print_func(ll.getLevel(5), k=2)
     # g = DAG()
     # print(g[5][3])
-    dag = DAG(basin=[2], depth=2, node_arity=2)
+    dag = DAG(basin=[2], depth=4, node_arity=2)
     print(dag)

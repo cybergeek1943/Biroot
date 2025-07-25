@@ -1,6 +1,5 @@
 from typing import Callable, Any, Union, Sequence, Generator, Self
 from math import e, comb
-import random as rd
 
 
 def nCk(n: int, k: int) -> int:  # Alias
@@ -66,19 +65,17 @@ class Level(list):
 
 
 class DAG:
-    def __init__(self, basin: Level | Sequence[int | float] = None,
-                 depth: int = None,
-                 node_arity: int = 2,
-                 save_levels: bool = True,
-                 func: LinearFunction = Funcs.sum,
-                 step_caller: Callable[[Level], Any] = None) -> None:
+    def __init__(self, as_continuous: Callable[[int, float], Any] | bool = None,
+                 **kwargs) -> None:
         self.levels: dict[int, Level] = {}
-        if basin and depth:
-            self.as_graph(basin, depth, node_arity, save_levels, func, step_caller)
+        if kwargs.get('basin', None) and kwargs.get('depth', None):
+            self.as_graph(**kwargs)
 
         # Continuous Function Attributes
         self.f: Callable[[int, float], Any] | None = None
         self.continuous: bool = False
+        if as_continuous:
+            self.as_continuous(as_continuous)
 
     def clear_graph(self):
         self.levels.clear()
@@ -94,7 +91,10 @@ class DAG:
 
     def as_graph(self, basin: Level | Sequence[int | float],
                  depth: int,
-                 node_arity: int = 2,
+                 node_arity: int | Sequence[int] = 2,  # also known as heads
+                 step: int | Sequence[int] = 1,
+                 start_pos: int = None,
+                 end_pos: int = None,
                  save_levels: bool = True,
                  func: LinearFunction = Funcs.sum,
                  step_caller: Callable[[Level], Any] = None) -> Self:
@@ -104,11 +104,22 @@ class DAG:
         if len(basin) == 1 and basin[0] == 1 and node_arity == 2 and func == Funcs.sum:
             return self.__generate_pascals(depth, save_levels, step_caller)
         self.levels[0] = basin
-        return self.__generate_graph(basin, depth, node_arity, save_levels, func, step_caller)
+        # Set up params for multihead loop
+        if start_pos is None:
+            start_pos = 0
+        if isinstance(node_arity, int):
+            node_arity = [p for p in range(-node_arity, 1)]
+        if isinstance(step, int):
+            step = [step for _ in range(len(node_arity))]
+        print(node_arity, step)
+        return self.__generate_graph(basin, depth, node_arity, step, start_pos, end_pos, save_levels, func, step_caller)
 
     def __generate_graph(self, l: Level,
                          depth: int,
-                         node_arity: int,
+                         heads: Sequence[int],
+                         step: Sequence[int],
+                         start_pos: int,
+                         end_pos: int | None,
                          save_levels: bool,
                          func: LinearFunction,
                          step_caller: Callable[[Level], Any],
@@ -116,15 +127,17 @@ class DAG:
         """Recursive DAG generator."""
         if step_caller:
             step_caller(l)
-        if depth == __level_idx:
+        if __level_idx == depth:
             if not save_levels: self.levels[__level_idx] = l
             return self
         new_level = Level()
-        for idx in range(-node_arity + 1, len(l)):
-            new_level.append(func(*[l[i] for i in range(idx, idx + node_arity)]))
+        for _ in l.multihead_loop(heads, step, start_pos, end_pos=len(l) + len(heads) - 1 if end_pos is None else end_pos):
+            new_level.append(func(*_))
+        # for idx in range(-node_arity + 1, len(l)):  # NOTE: this is old code with less flexibility as multihead_loop()
+        #     new_level.append(func(*[l[i] for i in range(idx, idx + node_arity)]))
         if save_levels:
             self.levels[__level_idx + 1] = new_level
-        return self.__generate_graph(new_level, depth, node_arity, save_levels, func, step_caller, __level_idx + 1)  # rd.choice([Funcs.lf_1, Funcs.sum, Funcs.lf_2]) works
+        return self.__generate_graph(new_level, depth, heads, step, start_pos, end_pos, save_levels, func, step_caller, __level_idx + 1)
 
     def __generate_pascals(self, depth: int, save_levels: bool, step_caller: Callable[[Level], Any]) -> Self:
         """Optimization in the event the Basin=[1]"""
@@ -136,10 +149,38 @@ class DAG:
         self.levels[depth] = Level([nCk(depth, k) for k in range(depth+1)])
         return self
 
-    def get_level(self, m: int) -> Level:
-        return self.levels.get(m,
-                               Level(lambda x: self.f(m, x)) if self.continuous and self.f else
-                               Level([nCk(m, k) for k in range(m+1)]))
+    def get_diagonal(self, start_idx: int,
+                     x_step: Callable[[int], int] | int = 1,
+                     y_step: Callable[[int], int] | int = -1) -> Level:
+        """
+        Useful if we want to get a diagonal to analyze the coeffs of Chebyshev Polynomials, Fibonacci polynomials, etc.
+        """
+        if isinstance(x_step, int):
+            _x = x_step
+            x_step = lambda x: x + _x
+        if isinstance(y_step, int):
+            _y = y_step
+            y_step = lambda y: y + _y
+        out: list[int | float] = []
+        x, y = 0, start_idx  # current positions
+        while y != -1 and (v:=(self.get_level(y)[x])) != 0:
+            out.append(v)
+            x = x_step(x)
+            y = y_step(y)
+        return Level(out)
+
+    def get_level(self, m: int, **kwargs) -> Level:
+        if m == -1:
+            if not self.levels:
+                raise IndexError('No levels exist in empty DAG')
+            if self.continuous and self.f:
+                raise IndexError('Cannot determine "last" level for continuous functions')
+            m = max(self.levels.keys())
+        return self.levels.get(
+            m,
+            Level((lambda x: self.f(m, x)) if self.continuous and self.f
+            else [nCk(m, k) for k in range(m + 1)], **kwargs)
+        )
 
     def __getitem__(self, m: int) -> Level:  # enables getting row and column by DAG[r][c]
         return self.get_level(m)
@@ -166,6 +207,7 @@ class DAG:
 
 
 if __name__ == '__main__':
+    import random as rd
     # The graph exhibits an Attractor Property (and Structural Invariance) to the nth root function.
     # It may explain why Newton's method, when iterated symbolically, yields the observed binomial patterns - both are manifestations of the same underlying attractor.
     # start = Level([1])  # Basin of Attraction (first level)
@@ -177,5 +219,5 @@ if __name__ == '__main__':
     # print_func(ll.getLevel(5), k=2)
     # g = DAG()
     # print(g[5][3])
-    dag = DAG(basin=[3, 6, 2, 8], depth=30, node_arity=3)
-    print(dag[3])
+    dag = DAG(basin=[2], depth=2, node_arity=2)
+    print(dag)

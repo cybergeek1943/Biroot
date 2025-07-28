@@ -89,7 +89,7 @@ class DAG:
                  depth: int,
                  node_arity: int | Sequence[int] = 2,  # also known as heads
                  step: int | Sequence[int] = 1,
-                 repeat_step: int | Callable[[Any, ...], int] = None,
+                 repeat_step: int | Callable[[Level, Sequence[int], Sequence[int], int], int] = None,
                  save_levels: bool = True,
                  func: Callable[..., int | float | Sequence[int | float]] = Funcs.sum,
                  step_caller: Callable[[Level], Any] = None) -> Self:
@@ -225,6 +225,9 @@ class DAG:
     def __iter__(self) -> Iterator[Level]:
         return self.levels.values().__iter__()
 
+    def __len__(self) -> int:
+        return len(self.levels)
+
 
 # TODO Current Findings:
 # We can start with N number of random nodes as the first level.
@@ -252,13 +255,12 @@ if __name__ == '__main__':
     # print_func(ll.getLevel(5), k=2)
     # g = DAG()
     # print(g[5][3])
-    dag = DAG().as_graph(basin=[1], depth=10, node_arity=(-2, -1, 0), step=(1, 2, 1))
+    dag = DAG().as_graph(basin=[1], depth=10, func=lambda x, y: x + y)
     print(dag)
-    # for l in dag:
-    #     print(len(l), l)
-    # l = []
-    for r in range(10):
-        print(sum(l:=dag.get_diagonal(r, x_step=1, y_step=-1)), l)
+    print('\n====\n')
+    for r in range(20):
+        print(sum(l:=dag.get_diagonal(r)), l)
+
     # l = Level([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     # for i, j, k in l.multihead_loop((-2, -1, 0), step=(2, 2, 2), repeat_step=10 // 2 + 1):
     #     print(i, j, k)

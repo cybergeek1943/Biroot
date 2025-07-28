@@ -54,12 +54,16 @@ class Biroot(Rational):
         if isinstance(self._dag, tuple):
             numerator_coeffs, denominator_coeffs = self._dag
         else:
-            level: Level = self._dag.get_level(m) if isinstance(self._dag, DAG) else self._dag
+            if isinstance(self._dag, DAG):
+                level: Level = self._dag.get_level(m)
+            else:
+                level: Level = self._dag
+                m = len(level) - 1  # used when parameterizing c
             upper_bound: int = ceil(m / n) + (1 if m % n == 0 else 0) if self._apply_upper_sum_bound_limit else m  # 👉👉👉 TODO thoroughly document this math
             __mhl_kwargs: dict = {
                 'heads': (0, 1),  # number and position of pointers
                 'step': (n, n),  # the step for each pointer
-                'end_pos': upper_bound  # how far the pointers should traverse
+                'repeat_step': upper_bound  # how far the pointers should traverse
             }
             if kwargs: __mhl_kwargs.update(kwargs)
             for nc, dc in level.multihead_loop(**__mhl_kwargs):
@@ -125,5 +129,11 @@ def RecursiveBiroot(b: Biroot, x, c, steps: int | float = 0.001):
 
 if __name__ == "__main__":
     from sympy.abc import c
-    b = Biroot(15, 3, c, continuous=True)
+
+    f = lambda m, x: exp(-2 * (x - m/2) ** 2 / m)  # mean = m/2 and standard_dev = sqrt(m/4)
+    dag = DAG().as_continuous(f)
+    # dag = DAG().as_graph(basin=[1], depth=20, node_arity=3)
+    # diag = dag.get_diagonal(20, x_step=1, y_step=-1)
+    # print('Diagonal', diag)
+    b = Biroot(10, 2, 1, dag=dag)
     b.print('latex')

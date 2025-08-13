@@ -255,11 +255,9 @@ if __name__ == '__main__':
     # print_func(ll.getLevel(5), k=2)
     # g = DAG()
     # print(g[5][3])
-    dag = DAG().as_graph(basin=[1], depth=10, func=lambda x, y: x + y)
-    print(dag)
-    print('\n====\n')
-    for r in range(20):
-        print(sum(l:=dag.get_diagonal(r)), l)
+
+    dag = DAG().as_graph(basin=[16, 6, 5, 12, 15, 11, 11, 8, 13, 1, 14, 7], depth=100, node_arity=3)
+    print(dag.get_level(1))
 
     # l = Level([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     # for i, j, k in l.multihead_loop((-2, -1, 0), step=(2, 2, 2), repeat_step=10 // 2 + 1):

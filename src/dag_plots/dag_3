@@ -1,0 +1,121 @@
+// DAG Structure
+digraph dag {
+	graph [center=true]
+	rankdir=TB
+	node [fillcolor=lightblue fontsize=12 shape=circle style=filled width=0.5]
+	edge [color=gray]
+	{
+		rank=same
+		L0N0 [label=1]
+		L0N1 [label=2]
+		L0N2 [label=3]
+	}
+	{
+		rank=same
+		L1N0 [label=1]
+		L1N1 [label=3]
+		L1N2 [label=6]
+		L1N3 [label=6]
+		L1N4 [label=5]
+		L1N5 [label=3]
+	}
+	{
+		rank=same
+		L2N0 [label=1]
+		L2N1 [label=4]
+		L2N2 [label=10]
+		L2N3 [label=16]
+		L2N4 [label=20]
+		L2N5 [label=20]
+		L2N6 [label=14]
+		L2N7 [label=8]
+		L2N8 [label=3]
+	}
+	{
+		rank=same
+		L3N0 [label=1]
+		L3N1 [label=5]
+		L3N2 [label=15]
+		L3N3 [label=31]
+		L3N4 [label=50]
+		L3N5 [label=66]
+		L3N6 [label=70]
+		L3N7 [label=62]
+		L3N8 [label=45]
+		L3N9 [label=25]
+		L3N10 [label=11]
+		L3N11 [label=3]
+	}
+	L0N0 -> L1N0
+	L0N1 -> L1N1
+	L0N0 -> L1N1
+	L0N2 -> L1N2
+	L0N1 -> L1N2
+	L0N0 -> L1N2
+	L0N2 -> L1N3
+	L0N1 -> L1N3
+	L0N0 -> L1N3
+	L0N2 -> L1N4
+	L0N1 -> L1N4
+	L0N2 -> L1N5
+	L1N0 -> L2N0
+	L1N1 -> L2N1
+	L1N0 -> L2N1
+	L1N2 -> L2N2
+	L1N1 -> L2N2
+	L1N0 -> L2N2
+	L1N3 -> L2N3
+	L1N2 -> L2N3
+	L1N1 -> L2N3
+	L1N0 -> L2N3
+	L1N4 -> L2N4
+	L1N3 -> L2N4
+	L1N2 -> L2N4
+	L1N1 -> L2N4
+	L1N5 -> L2N5
+	L1N4 -> L2N5
+	L1N3 -> L2N5
+	L1N2 -> L2N5
+	L1N5 -> L2N6
+	L1N4 -> L2N6
+	L1N3 -> L2N6
+	L1N5 -> L2N7
+	L1N4 -> L2N7
+	L1N5 -> L2N8
+	L2N0 -> L3N0
+	L2N1 -> L3N1
+	L2N0 -> L3N1
+	L2N2 -> L3N2
+	L2N1 -> L3N2
+	L2N0 -> L3N2
+	L2N3 -> L3N3
+	L2N2 -> L3N3
+	L2N1 -> L3N3
+	L2N0 -> L3N3
+	L2N4 -> L3N4
+	L2N3 -> L3N4
+	L2N2 -> L3N4
+	L2N1 -> L3N4
+	L2N5 -> L3N5
+	L2N4 -> L3N5
+	L2N3 -> L3N5
+	L2N2 -> L3N5
+	L2N6 -> L3N6
+	L2N5 -> L3N6
+	L2N4 -> L3N6
+	L2N3 -> L3N6
+	L2N7 -> L3N7
+	L2N6 -> L3N7
+	L2N5 -> L3N7
+	L2N4 -> L3N7
+	L2N8 -> L3N8
+	L2N7 -> L3N8
+	L2N6 -> L3N8
+	L2N5 -> L3N8
+	L2N8 -> L3N9
+	L2N7 -> L3N9
+	L2N6 -> L3N9
+	L2N8 -> L3N10
+	L2N7 -> L3N10
+	L2N8 -> L3N11
+}

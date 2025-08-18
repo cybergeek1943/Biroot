@@ -1,5 +1,8 @@
 # 🔢Biroot: Nth Root Approximation Method
-[![DOI](https://zenodo.org/badge/1022357951.svg)](https://doi.org/10.5281/zenodo.16878055)
+Paper: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16891614.svg)](https://doi.org/10.5281/zenodo.16891614)
+
+Software: [![DOI](https://zenodo.org/badge/1022357951.svg)](https://doi.org/10.5281/zenodo.16878055)
+
 
 Python library for computing nth roots using directed acyclic graphs (DAGs) or Gaussian functions. Based on the paper (draft in-progress) *DAG-Gaussian Encoding for nth Root Function Approximation*
 
